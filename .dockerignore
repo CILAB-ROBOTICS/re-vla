@@ -1,0 +1,17 @@
+# Docker build context is re_vla/ (see docker/build.sh). Exclude everything not needed
+# by docker/Dockerfile so `docker build` doesn't send large/irrelevant trees.
+
+# Main-branch lerobot checkout (Python >=3.12) - the container uses the fork, staged
+# separately into docker/_lerobot_fork_src/ by build.sh.
+/lerobot/
+
+# VCS metadata of the nested LIBERO/lerobot git checkouts.
+**/.git/
+
+# Local run outputs, caches, editor/OS cruft.
+**/outputs/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/*.egg-info/
+**/.DS_Store
