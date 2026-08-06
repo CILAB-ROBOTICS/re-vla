@@ -26,12 +26,10 @@ export MUJOCO_GL=egl   # headless rendering
 
 ```bash
 # SmolVLA (recipe: docs/source/libero.mdx)
-./scripts/fine_tuning/finetune_smolvla_libero.sh \
-    --output-dir ./outputs/libero_smolvla --steps 30000 --batch-size 8
+./scripts/fine_tuning/finetune_smolvla_libero.sh
 
 # Pi0.5, continuing from the LIBERO-pretrained base checkpoint (recipe: docs/source/pi05.mdx)
-./scripts/fine_tuning/finetune_pi05_libero.sh \
-    --output-dir ./outputs/libero_pi05 --steps 6000 --batch-size 2
+./scripts/fine_tuning/finetune_pi05_libero.sh
 ```
 
 or call the shared engine directly with any supported `--policy-type`:
