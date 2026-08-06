@@ -75,25 +75,6 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
     parser.add_argument("--batch-size", type=int, default=8, help="Per-step batch size.")
     parser.add_argument("--save-freq", type=int, default=5_000, help="Checkpoint frequency (steps).")
     parser.add_argument("--log-freq", type=int, default=200, help="Logging frequency (steps).")
-    parser.add_argument(
-        "--val-freq",
-        type=int,
-        default=None,
-        help="Offline validation frequency (steps); 0 disables validation. Defaults to --save-freq.",
-    )
-    parser.add_argument(
-        "--val-ratio",
-        type=float,
-        default=0.02,
-        help="Target fraction of dataset frames held out for validation (capped by --max-val-episodes).",
-    )
-    parser.add_argument(
-        "--max-val-episodes",
-        type=int,
-        default=20,
-        help="Hard cap on validation episode count, so a validation pass stays fast regardless of "
-        "dataset size.",
-    )
     parser.add_argument("--seed", type=int, default=1000)
     parser.add_argument("--device", default=None, help="Override policy device (e.g. cuda, cpu).")
     parser.add_argument("--no-amp", action="store_true", help="Disable mixed precision (SmolVLA only; enabled by default).")
@@ -249,9 +230,6 @@ def build_command(args: argparse.Namespace, passthrough: list[str]) -> list[str]
         f"--batch_size={args.batch_size}",
         f"--save_freq={args.save_freq}",
         f"--log_freq={args.log_freq}",
-        f"--val_freq={args.val_freq if args.val_freq is not None else args.save_freq}",
-        f"--val_ratio={args.val_ratio}",
-        f"--max_val_episodes={args.max_val_episodes}",
         f"--seed={args.seed}",
         f"--wandb.enable={str(args.wandb).lower()}",
     ]
