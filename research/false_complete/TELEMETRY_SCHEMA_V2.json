@@ -1,0 +1,99 @@
+{
+  "schema_name": "re_vla_rollout_telemetry",
+  "schema_version": "2.0.0-draft",
+  "compatibility": {
+    "legacy_schema": "1.x",
+    "policy": "Existing 200 episodes are preserved as a partial v1 subset. No object/contact events are fabricated during migration. Future rollout data is written only as v2 in distinct output paths.",
+    "migration": "Map shared frame/action/eef/gripper/success fields; fill unavailable v2 telemetry with null and telemetry_completeness=legacy_partial."
+  },
+  "episode_fields": [
+    "schema_version",
+    "collector_version",
+    "suite",
+    "task_id",
+    "task_description",
+    "seed",
+    "condition",
+    "event_origin",
+    "pair_id",
+    "perturbation_type",
+    "perturbation_config_hash",
+    "task_mapping_hash",
+    "telemetry_completeness"
+  ],
+  "frame_fields": [
+    "episode_index",
+    "timestep",
+    "timestamp",
+    "action",
+    "eef_position",
+    "eef_orientation",
+    "gripper_position",
+    "gripper_velocity",
+    "simulator_state_vector",
+    "next_simulator_state_vector",
+    "objects",
+    "sites",
+    "contacts",
+    "next_objects",
+    "next_sites",
+    "next_contacts",
+    "target_object_position",
+    "target_object_orientation",
+    "target_object_linear_velocity",
+    "target_object_angular_velocity",
+    "target_object_attached",
+    "target_object_contacts",
+    "goal_region_position",
+    "goal_predicates",
+    "next_goal_predicates",
+    "task_success",
+    "perturbation_scheduled",
+    "perturbation_triggered",
+    "perturbation_parameters"
+  ],
+  "nullable_until_task_mapping_is_validated": [
+    "target_object_position",
+    "target_object_orientation",
+    "target_object_linear_velocity",
+    "target_object_angular_velocity",
+    "target_object_attached",
+    "target_object_contacts",
+    "goal_region_position",
+    "goal_predicates"
+  ],
+  "derived_outputs": {
+    "events": [
+      "grasp_attempt",
+      "grasp_detected",
+      "missed_grasp",
+      "object_dropped",
+      "object_displaced",
+      "orientation_invalid"
+    ],
+    "phases": [
+      "approach",
+      "grasp_attempt",
+      "transport",
+      "place_attempt",
+      "retract_or_settle",
+      "retry_approach",
+      "retry_grasp"
+    ],
+    "version_fields": [
+      "event_detector_version",
+      "event_config_hash",
+      "phase_detector_version",
+      "phase_config_hash",
+      "terminal_detector_version",
+      "terminal_config_hash",
+      "rule_version",
+      "rule_config_hash"
+    ]
+  },
+  "forbidden_derivations": [
+    "Do not derive failure events from outcome, reward, success, or episode length alone.",
+    "Do not use successful-trajectory action or representation similarity for phase or terminal-like detection.",
+    "Do not write final false_complete labels during collection."
+  ]
+}

@@ -67,6 +67,14 @@ from lerobot.policies.factory import make_policy, make_pre_post_processors
 from lerobot.utils.constants import ACTION, OBS_IMAGES, OBS_STR
 from lerobot.utils.random_utils import set_seed
 
+from telemetry_v2 import (
+    TelemetryV2Writer,
+    build_frame_record,
+    canonical_hash,
+    capture_libero_semantics,
+    capture_step_state,
+)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("collect_libero_rollouts")
 
@@ -119,8 +127,19 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--seed", type=int, default=1000, help="Seed for episode 0; incremented per episode.")
     parser.add_argument("--device", default=None, help="Override policy device (e.g. cuda, cpu).")
+    parser.add_argument(
+        "--rename-map",
+        type=json.loads,
+        default=None,
+        help="JSON mapping from environment feature names to policy feature names, matching lerobot_eval.",
+    )
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--repo-id", default="local/libero_rollouts", help="Dataset repo id (used for local dir naming).")
+    parser.add_argument(
+        "--telemetry-v2",
+        action="store_true",
+        help="Write append-only telemetry-v2 JSONL sidecars. Requires a fresh output directory.",
+    )
     return parser.parse_args()
 
 
@@ -206,15 +225,40 @@ def run_episode(
     seed: int,
     standard_max_steps: int,
     extended_max_steps: int,
+    episode_index: int,
+    suite_name: str,
+    task_id: int,
+    fps: float,
+    telemetry_writer: TelemetryV2Writer | None = None,
 ) -> dict:
     policy.reset()
     observation, _info = env.reset(seed=[seed])
     task_desc = str(env.call("task_description")[0])
 
+    if telemetry_writer is not None:
+        initial_semantics, initial_semantics_error = capture_libero_semantics(env)
+        task_mapping = None if initial_semantics is None else initial_semantics.get("task_mapping")
+        telemetry_writer.begin_episode(
+            {
+                "episode_index": episode_index,
+                "suite": suite_name,
+                "task_id": task_id,
+                "task_description": task_desc,
+                "seed": seed,
+                "task_mapping": task_mapping,
+                "task_mapping_hash": None if task_mapping is None else canonical_hash(task_mapping),
+                "task_mapping_unavailable_reason": initial_semantics_error,
+            }
+        )
+
     first_success_step: int | None = None
     num_frames = 0
+    previous_gripper_position: list[float] | None = None
     for step_idx in range(extended_max_steps):
         raw_observation = deepcopy(observation)
+        simulator_state = simulator_state_error = semantic_state = semantic_state_error = None
+        if telemetry_writer is not None:
+            simulator_state, simulator_state_error, semantic_state, semantic_state_error = capture_step_state(env)
 
         obs = preprocess_observation(observation)
         obs["task"] = [task_desc]
@@ -227,6 +271,14 @@ def run_episode(
         action_np = action.to("cpu").numpy()
 
         observation, reward, terminated, truncated, info = env.step(action_np)
+        next_simulator_state = next_simulator_state_error = next_semantic_state = next_semantic_state_error = None
+        if telemetry_writer is not None:
+            (
+                next_simulator_state,
+                next_simulator_state_error,
+                next_semantic_state,
+                next_semantic_state_error,
+            ) = capture_step_state(env)
 
         success = bool(np.asarray(info["is_success"]).reshape(-1)[0])
         done = bool(terminated[0] or truncated[0])
@@ -236,6 +288,34 @@ def run_episode(
             raw_observation, action_np[0], float(np.asarray(reward)[0]), success, done, is_recovery_phase, task_desc
         )
         dataset.add_frame(frame)
+        if telemetry_writer is not None:
+            telemetry_frame = build_frame_record(
+                episode_index=episode_index,
+                timestep=step_idx,
+                fps=fps,
+                raw_observation=raw_observation,
+                previous_gripper_position=previous_gripper_position,
+                action=action_np[0],
+                reward=float(np.asarray(reward)[0]),
+                task_success=success,
+                done=done,
+                simulator_state_vector=simulator_state,
+                next_simulator_state_vector=next_simulator_state,
+                semantic_state=semantic_state,
+                next_semantic_state=next_semantic_state,
+            )
+            if simulator_state_error or next_simulator_state_error:
+                telemetry_frame["simulator_state_unavailable_reason"] = {
+                    "pre_action": simulator_state_error,
+                    "post_action": next_simulator_state_error,
+                }
+            if semantic_state_error or next_semantic_state_error:
+                telemetry_frame["semantic_state_unavailable_reason"] = {
+                    "pre_action": semantic_state_error,
+                    "post_action": next_semantic_state_error,
+                }
+            telemetry_writer.write_frame(telemetry_frame)
+            previous_gripper_position = telemetry_frame["gripper_position"]
         num_frames += 1
 
         if success and first_success_step is None:
@@ -245,7 +325,7 @@ def run_episode(
 
     dataset.save_episode()
 
-    return {
+    result = {
         "task_description": task_desc,
         "seed": seed,
         "num_frames": num_frames,
@@ -254,6 +334,16 @@ def run_episode(
         "first_success_step": first_success_step,
         "outcome": classify_outcome(first_success_step, standard_max_steps),
     }
+    if telemetry_writer is not None:
+        telemetry_writer.finish_episode(
+            {
+                "episode_index": episode_index,
+                "num_frames": num_frames,
+                "first_success_step": first_success_step,
+                "time_budget_outcome_recorded_not_used_as_detector_proxy": result["outcome"],
+            }
+        )
+    return result
 
 
 def main() -> None:
@@ -261,7 +351,13 @@ def main() -> None:
     set_seed(args.seed)
 
     output_dir = Path(args.output_dir)
+    if args.telemetry_v2 and any((output_dir / name).exists() for name in ("dataset", "rollout_manifest.json", "telemetry_v2")):
+        raise FileExistsError(f"--telemetry-v2 requires a fresh output directory: {output_dir}")
     output_dir.mkdir(parents=True, exist_ok=True)
+    telemetry_writer = None
+    if args.telemetry_v2:
+        schema_path = Path(__file__).resolve().parents[2] / "research" / "false_complete" / "TELEMETRY_SCHEMA_V2.json"
+        telemetry_writer = TelemetryV2Writer(output_dir / "telemetry_v2", schema_path)
 
     policy_cfg = PreTrainedConfig.from_pretrained(args.policy_path)
     policy_cfg.pretrained_path = Path(args.policy_path)
@@ -280,13 +376,16 @@ def main() -> None:
     envs = make_env(env_cfg, n_envs=1, use_async_envs=False)
 
     logger.info("Loading policy from %s", args.policy_path)
-    policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg)
+    policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg, rename_map=args.rename_map)
     policy.eval()
 
+    preprocessor_overrides = {"device_processor": {"device": str(policy_cfg.device)}}
+    if args.rename_map:
+        preprocessor_overrides["rename_observations_processor"] = {"rename_map": args.rename_map}
     preprocessor, postprocessor = make_pre_post_processors(
         policy_cfg=policy_cfg,
         pretrained_path=str(args.policy_path),
-        preprocessor_overrides={"device_processor": {"device": str(policy_cfg.device)}},
+        preprocessor_overrides=preprocessor_overrides,
     )
     env_preprocessor, env_postprocessor = make_env_pre_post_processors(env_cfg=env_cfg, policy_cfg=policy_cfg)
 
@@ -344,6 +443,11 @@ def main() -> None:
                         seed,
                         standard_max_steps,
                         extended_max_steps,
+                        episode_index,
+                        suite_name,
+                        task_id,
+                        env_cfg.fps,
+                        telemetry_writer,
                     )
                     meta.update({"suite": suite_name, "task_id": task_id, "episode_index": episode_index})
                     manifest.append(meta)
@@ -358,12 +462,17 @@ def main() -> None:
                     )
                     episode_index += 1
     finally:
+        if telemetry_writer is not None:
+            telemetry_writer.close_partial()
         dataset.finalize()
         close_envs(envs)
 
     manifest_path = output_dir / "rollout_manifest.json"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
+    if telemetry_writer is not None:
+        telemetry_manifest_path = telemetry_writer.finalize()
+        logger.info("Telemetry v2: %s", telemetry_manifest_path)
 
     counts = Counter(m["outcome"] for m in manifest)
     logger.info("Done: %d episodes -> %s", len(manifest), dict(counts))
