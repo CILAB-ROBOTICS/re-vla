@@ -41,6 +41,7 @@ def write_episode(root: Path, condition: str, diverge: bool = False) -> None:
     }
     for key in TRAJECTORY_FIELDS:
         frame[key] = rng if key.endswith("rng_state_hashes") else [1.0]
+    frame["gripper_velocity"] = None
     if diverge:
         frame["action"] = [2.0]
     records = [header, frame, {"record_type": "episode_end"}]

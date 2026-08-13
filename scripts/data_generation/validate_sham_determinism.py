@@ -67,8 +67,12 @@ def compare_pair(baseline_root: Path, sham_root: Path) -> dict[str, Any]:
             raise ValueError(f"Sham hook consumed RNG at frame {index}")
         trigger_count += int(candidate.get("perturbation_triggered") is True)
         for key in TRAJECTORY_FIELDS:
-            if base.get(key) is None or base.get(key) != candidate.get(key):
-                raise ValueError(f"Trajectory divergence or missing field at frame {index}: {key}")
+            if key not in base or key not in candidate:
+                raise ValueError(f"Missing trajectory field at frame {index}: {key}")
+            if base[key] != candidate[key]:
+                raise ValueError(f"Trajectory divergence at frame {index}: {key}")
+            if base[key] is None and not (key == "gripper_velocity" and index == 0):
+                raise ValueError(f"Unexpected null trajectory field at frame {index}: {key}")
     if trigger_count != 1:
         raise ValueError(f"Expected exactly one sham trigger, found {trigger_count}")
     return {"validation": "PASS", "frames": len(baseline_frames), "trigger_count": trigger_count, "bitwise": True}
