@@ -1,0 +1,53 @@
+{
+  "detector_version": "event-phase-evidence-v0.2.0",
+  "schema_version": "1.1.0",
+  "status": "development_unfrozen",
+  "fps": 20.0,
+  "gripper": {
+    "closed_max": 0.02,
+    "open_min": 0.06,
+    "minimum_state_frames": 5,
+    "minimum_transition_separation_frames": 10
+  },
+  "approach": {
+    "window_frames": 10,
+    "minimum_distance_decrease": 0.03,
+    "near_target_max": 0.18
+  },
+  "transport": {
+    "window_frames": 10,
+    "minimum_target_displacement": 0.02,
+    "eef_to_target_max": 0.18
+  },
+  "goal_approach": {
+    "window_frames": 10,
+    "minimum_distance_decrease": 0.03,
+    "near_goal_max": 0.25
+  },
+  "eef_goal_approach": {
+    "window_frames": 10,
+    "minimum_distance_decrease": 0.03,
+    "near_goal_max": 0.25,
+    "minimum_frames_after_grasp": 5
+  },
+  "retract": {
+    "window_frames": 20,
+    "minimum_eef_goal_increase": 0.05
+  },
+  "settle": {
+    "window_frames": 10,
+    "eef_speed_max": 0.01,
+    "translation_action_norm_max": 0.08,
+    "rotation_action_norm_max": 0.02
+  },
+  "forbidden_proxies": [
+    "outcome",
+    "reward",
+    "done",
+    "success",
+    "episode_length",
+    "successful_trajectory_similarity",
+    "representation_similarity"
+  ],
+  "policy": "Emit debounced, ordered geometry/kinematics temporal evidence only. EEF-to-goal motion is derived from raw positions and remains distinct from target-to-goal motion. Do not assign failure, recovery, terminal-like, subtype, or False Complete labels."
+}

@@ -1,0 +1,46 @@
+{
+  "detector_version": "event-phase-evidence-v0.1.0",
+  "schema_version": "1.0.0",
+  "status": "development_unfrozen",
+  "fps": 20.0,
+  "gripper": {
+    "closed_max": 0.02,
+    "open_min": 0.06,
+    "minimum_state_frames": 3
+  },
+  "approach": {
+    "window_frames": 10,
+    "minimum_distance_decrease": 0.03,
+    "near_target_max": 0.18
+  },
+  "transport": {
+    "window_frames": 10,
+    "minimum_target_displacement": 0.02,
+    "eef_to_target_max": 0.18
+  },
+  "goal_approach": {
+    "window_frames": 10,
+    "minimum_distance_decrease": 0.03,
+    "near_goal_max": 0.25
+  },
+  "retract": {
+    "window_frames": 20,
+    "minimum_eef_target_increase": 0.05
+  },
+  "settle": {
+    "window_frames": 10,
+    "eef_speed_max": 0.01,
+    "translation_action_norm_max": 0.08,
+    "rotation_action_norm_max": 0.02
+  },
+  "forbidden_proxies": [
+    "outcome",
+    "reward",
+    "done",
+    "success",
+    "episode_length",
+    "successful_trajectory_similarity",
+    "representation_similarity"
+  ],
+  "policy": "Emit geometry/kinematics temporal evidence only. Do not assign failure, recovery, terminal-like, subtype, or False Complete labels. Unknown or unavailable evidence remains absent/unknown."
+}

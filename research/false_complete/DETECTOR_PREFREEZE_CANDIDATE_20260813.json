@@ -1,0 +1,38 @@
+{
+  "status": "development_unfrozen",
+  "created_at_kst": "2026-08-13T10:26:00+09:00",
+  "freeze_forbidden_until": "User approves an episode-paired telemetry-v2 human evaluation cohort",
+  "sealed_reference_accessed": false,
+  "evaluation_predictions_run": false,
+  "scientific_labels_assigned": false,
+  "forbidden_proxies": [
+    "outcome",
+    "reward",
+    "success",
+    "done",
+    "episode_length",
+    "successful_trajectory_action_similarity",
+    "successful_trajectory_representation_similarity"
+  ],
+  "local_test_evidence": {
+    "scripts_data_generation": {
+      "tests": 8,
+      "result": "PASS"
+    },
+    "scripts_data_labeling": {
+      "tests": 32,
+      "result": "PASS"
+    }
+  },
+  "candidate_files_sha256": {
+    "research/false_complete/CODEBOOK_KO.md": "894749f8b1c8bd3b2f8167ba29bcddfcf364a899151e6663419d3d7f7c099667",
+    "research/false_complete/GEOMETRY_KINEMATICS_FEATURES_V0_1.json": "24c5d607189d52a81ed0d40df0294060230009856231a0f13cfd4c3bf4e9f01c",
+    "research/false_complete/EVENT_PHASE_DETECTOR_V0_2.json": "3f74a3193de3ce00c4a7e713cf6c0281a88e6627088c940aac5ce02ce7343269",
+    "research/false_complete/FAILURE_RECOVERY_DETECTOR_V0_1.json": "f0a10ac08bb50f03f972aed15e04abb9ed52369b25809b25c76768d464fb3712",
+    "research/false_complete/TERMINAL_LIKE_DETECTOR_V0_1.json": "94ef4759aff5a10f05992651473c168ab6de7d8f4caf13742f7a3d78ead2cb51",
+    "scripts/data_labeling/extract_geometry_kinematics_features.py": "fc3dd0ad4ca26544ae0239e2696a815eb36a459320d50bad1b7feefb873a5bf7",
+    "scripts/data_labeling/detect_event_phase_evidence.py": "35423715d9d2f993b6905ba783d172b7f5ba7368dbee5501e6bb4eef0268fe93",
+    "scripts/data_labeling/detect_failure_recovery_evidence.py": "3789634568af8266f56a55ba06a36f3b29c2c2489f429294c835b64fe69630ba",
+    "scripts/data_labeling/detect_terminal_like_evidence.py": "fae0c4783222b25ff294855b92a0d0233ea5b3058516dd5979004aa4af99c4d1"
+  }
+}

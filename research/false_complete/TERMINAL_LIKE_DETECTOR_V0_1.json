@@ -1,0 +1,27 @@
+{
+  "detector_version": "terminal-like-evidence-v0.1.0",
+  "schema_version": "1.0.0",
+  "status": "development_unfrozen",
+  "release_match_tolerance_frames": 2,
+  "maximum_retract_delay_frames": 100,
+  "maximum_settle_delay_frames": 100,
+  "minimum_no_retry_observation_frames": 10,
+  "required_components": [
+    "next_phase_entry",
+    "release",
+    "retract",
+    "settle",
+    "no_valid_recovery",
+    "no_retry_after_terminal_sequence"
+  ],
+  "forbidden_proxies": [
+    "outcome",
+    "reward",
+    "done",
+    "success",
+    "episode_length",
+    "successful_trajectory_similarity",
+    "representation_similarity"
+  ],
+  "policy": "Require ordered place/release, retract, settle, and no subsequent retry. If any required component is unavailable, preserve terminal_like=null. Do not assign False Complete or episode outcome labels."
+}

@@ -1,0 +1,23 @@
+{
+  "feature_extractor_version": "geometry-kinematics-features-v0.1.0",
+  "schema_version": "1.0.0",
+  "spatial_predicates": [
+    "in",
+    "on"
+  ],
+  "non_spatial_predicates": [
+    "close",
+    "open",
+    "turnon",
+    "turnoff"
+  ],
+  "fps": 20.0,
+  "forbidden_input_fields": [
+    "time_budget_outcome_recorded_not_used_as_detector_proxy",
+    "reward_recorded_not_used_as_detector_proxy",
+    "done_recorded_not_used_as_detector_proxy",
+    "task_success",
+    "false_complete"
+  ],
+  "policy": "Extract raw geometry and kinematics only. Do not assign events, phases, terminal-like behavior, recovery, subtypes, or False Complete labels. Thresholds belong to later versioned detector configs."
+}

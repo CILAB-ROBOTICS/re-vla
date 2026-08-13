@@ -1,0 +1,31 @@
+{
+  "detector_version": "failure-recovery-evidence-v0.1.0",
+  "schema_version": "1.0.0",
+  "status": "development_unfrozen",
+  "missed_grasp": {
+    "require_place_after_grasp": true,
+    "require_no_target_transport": true
+  },
+  "slip": {
+    "window_frames": 100,
+    "eef_target_separation_increase": 0.12,
+    "minimum_target_speed": 0.02,
+    "closed_width_max": 0.02
+  },
+  "recovery": {
+    "maximum_reapproach_delay_frames": 200,
+    "maximum_close_after_reapproach_frames": 100,
+    "maximum_success_delay_frames": 200,
+    "minimum_post_event_observation_frames": 20
+  },
+  "forbidden_proxies": [
+    "outcome",
+    "reward",
+    "done",
+    "success",
+    "episode_length",
+    "successful_trajectory_similarity",
+    "representation_similarity"
+  ],
+  "policy": "Detect failure and recovery evidence from simulator geometry, predicate state, and ordered phase events only. Null means insufficient evidence. Never derive final episode labels, terminal-like behavior, subtypes, or False Complete."
+}
