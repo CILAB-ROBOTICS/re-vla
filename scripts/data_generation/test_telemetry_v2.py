@@ -1,4 +1,5 @@
 import json
+import random
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ from telemetry_v2 import (
     SCHEMA_VERSION,
     TelemetryV2Writer,
     build_frame_record,
+    capture_rng_state_hashes,
     capture_libero_semantics,
     capture_simulator_state,
 )
@@ -31,6 +33,36 @@ def raw_observation(gripper=(0.1, 0.2)):
 
 
 class TelemetryV2Test(unittest.TestCase):
+    def test_rng_hash_capture_does_not_consume_python_numpy_or_env_rng(self):
+        class FakeCuda:
+            @staticmethod
+            def is_initialized():
+                return False
+
+        class FakeTensor:
+            def cpu(self):
+                return self
+
+            def numpy(self):
+                return np.array([3, 1, 4], dtype=np.uint8)
+
+        fake_torch = type("FakeTorch", (), {"cuda": FakeCuda(), "get_rng_state": staticmethod(FakeTensor)})()
+        core = type("Core", (), {"sim": object(), "np_random": np.random.default_rng(17)})()
+        wrapper = type("OffScreen", (), {"env": core})()
+        member = type("LeRobot", (), {"_env": wrapper, "np_random": np.random.default_rng(19)})()
+        vector = type("SyncVector", (), {"envs": [member]})()
+        python_before = random.getstate()
+        numpy_before = np.random.get_state()
+        env_before = core.np_random.bit_generator.state
+        first = capture_rng_state_hashes(vector, torch_module=fake_torch)
+        second = capture_rng_state_hashes(vector, torch_module=fake_torch)
+        self.assertEqual(first, second)
+        self.assertIsNone(first["env_unavailable_reason"])
+        self.assertEqual(python_before, random.getstate())
+        self.assertEqual(numpy_before[0], np.random.get_state()[0])
+        np.testing.assert_array_equal(numpy_before[1], np.random.get_state()[1])
+        self.assertEqual(env_before, core.np_random.bit_generator.state)
+
     def test_semantic_capture_preserves_objects_contacts_and_predicates(self):
         class Model:
             @staticmethod

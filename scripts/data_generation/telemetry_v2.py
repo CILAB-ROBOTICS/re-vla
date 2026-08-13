@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import random
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +42,54 @@ def _json_value(value: Any) -> Any:
 def canonical_hash(value: Any) -> str:
     payload = json.dumps(_json_value(value), sort_keys=True, separators=(",", ":"), allow_nan=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def capture_rng_state_hashes(env: Any, torch_module: Any | None = None) -> dict[str, Any]:
+    """Hash RNG states without sampling or mutating them.
+
+    Environment RNG capture is fail-closed: a missing ``np_random`` state is
+    represented explicitly and must make a determinism validator fail rather than
+    silently claiming equivalence.
+    """
+    if torch_module is None:
+        import torch as torch_module  # Local import keeps schema-only tooling light.
+
+    hashes: dict[str, Any] = {
+        "python": canonical_hash(random.getstate()),
+        "numpy_global": canonical_hash(np.random.get_state()),
+        "torch_cpu": canonical_hash(torch_module.get_rng_state().cpu().numpy()),
+        "torch_cuda": None,
+        "env": {},
+        "env_unavailable_reason": None,
+    }
+    try:
+        if torch_module.cuda.is_initialized():
+            hashes["torch_cuda"] = [
+                canonical_hash(state.cpu().numpy()) for state in torch_module.cuda.get_rng_state_all()
+            ]
+    except Exception as exc:  # CUDA state is diagnostic; preserve explicit unavailability.
+        hashes["torch_cuda_unavailable_reason"] = f"{type(exc).__name__}: {exc}"
+
+    try:
+        vector_member = env.envs[0]
+        core = get_libero_core_env(env)
+        candidates = (("vector_member", vector_member), ("core", core))
+        for name, owner in candidates:
+            rng = getattr(owner, "np_random", None)
+            if rng is None:
+                continue
+            if hasattr(rng, "bit_generator"):
+                state = rng.bit_generator.state
+            elif hasattr(rng, "get_state"):
+                state = rng.get_state()
+            else:
+                continue
+            hashes["env"][name] = canonical_hash(state)
+        if not hashes["env"]:
+            hashes["env_unavailable_reason"] = "No readable np_random state on vector member or LIBERO core"
+    except Exception as exc:
+        hashes["env_unavailable_reason"] = f"{type(exc).__name__}: {exc}"
+    return hashes
 
 
 def load_schema_contract(path: Path) -> tuple[dict[str, Any], str]:

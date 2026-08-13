@@ -72,6 +72,7 @@ from telemetry_v2 import (
     build_frame_record,
     canonical_hash,
     capture_libero_semantics,
+    capture_rng_state_hashes,
     capture_step_state,
 )
 
@@ -139,6 +140,14 @@ def parse_args() -> argparse.Namespace:
         "--telemetry-v2",
         action="store_true",
         help="Write append-only telemetry-v2 JSONL sidecars. Requires a fresh output directory.",
+    )
+    parser.add_argument("--condition", choices=["baseline", "sham"], default="baseline")
+    parser.add_argument("--pair-id", default=None, help="Matched-control pair id; required for sham.")
+    parser.add_argument("--sham-trigger-step", type=int, default=None, help="Fixed no-op trigger step; sham only.")
+    parser.add_argument(
+        "--determinism-audit",
+        action="store_true",
+        help="Record initial and per-step RNG hashes for baseline-vs-sham validation.",
     )
     return parser.parse_args()
 
@@ -230,6 +239,10 @@ def run_episode(
     task_id: int,
     fps: float,
     telemetry_writer: TelemetryV2Writer | None = None,
+    condition: str = "baseline",
+    pair_id: str | None = None,
+    sham_trigger_step: int | None = None,
+    determinism_audit: bool = False,
 ) -> dict:
     policy.reset()
     observation, _info = env.reset(seed=[seed])
@@ -238,6 +251,9 @@ def run_episode(
     if telemetry_writer is not None:
         initial_semantics, initial_semantics_error = capture_libero_semantics(env)
         task_mapping = None if initial_semantics is None else initial_semantics.get("task_mapping")
+        sham_config = None
+        if condition == "sham":
+            sham_config = {"mode": "noop", "trigger_step": sham_trigger_step, "uses_rng": False}
         telemetry_writer.begin_episode(
             {
                 "episode_index": episode_index,
@@ -248,6 +264,14 @@ def run_episode(
                 "task_mapping": task_mapping,
                 "task_mapping_hash": None if task_mapping is None else canonical_hash(task_mapping),
                 "task_mapping_unavailable_reason": initial_semantics_error,
+                "condition": condition,
+                "event_origin": "sham" if condition == "sham" else "natural",
+                "pair_id": pair_id,
+                "perturbation_type": "sham_noop" if condition == "sham" else None,
+                "perturbation_config_hash": None if sham_config is None else canonical_hash(sham_config),
+                "initial_observation_hash": canonical_hash(observation) if determinism_audit else None,
+                "initial_rng_state_hashes": capture_rng_state_hashes(env) if determinism_audit else None,
+                "determinism_audit_enabled": determinism_audit,
             }
         )
 
@@ -256,6 +280,14 @@ def run_episode(
     previous_gripper_position: list[float] | None = None
     for step_idx in range(extended_max_steps):
         raw_observation = deepcopy(observation)
+        pre_action_rng_state_hashes = capture_rng_state_hashes(env) if determinism_audit else None
+        sham_hook_rng_before = sham_hook_rng_after = None
+        sham_triggered = False
+        if condition == "sham":
+            sham_hook_rng_before = capture_rng_state_hashes(env) if determinism_audit else None
+            # Deliberately deterministic and side-effect free: no RNG and no simulator mutation.
+            sham_triggered = step_idx == sham_trigger_step
+            sham_hook_rng_after = capture_rng_state_hashes(env) if determinism_audit else None
         simulator_state = simulator_state_error = semantic_state = semantic_state_error = None
         if telemetry_writer is not None:
             simulator_state, simulator_state_error, semantic_state, semantic_state_error = capture_step_state(env)
@@ -304,6 +336,19 @@ def run_episode(
                 semantic_state=semantic_state,
                 next_semantic_state=next_semantic_state,
             )
+            telemetry_frame.update(
+                {
+                    "pre_action_rng_state_hashes": pre_action_rng_state_hashes,
+                    "post_action_rng_state_hashes": capture_rng_state_hashes(env) if determinism_audit else None,
+                    "sham_hook_rng_before": sham_hook_rng_before,
+                    "sham_hook_rng_after": sham_hook_rng_after,
+                    "perturbation_scheduled": condition == "sham",
+                    "perturbation_triggered": sham_triggered,
+                    "perturbation_parameters": None
+                    if condition != "sham"
+                    else {"mode": "noop", "trigger_step": sham_trigger_step, "uses_rng": False},
+                }
+            )
             if simulator_state_error or next_simulator_state_error:
                 telemetry_frame["simulator_state_unavailable_reason"] = {
                     "pre_action": simulator_state_error,
@@ -348,6 +393,15 @@ def run_episode(
 
 def main() -> None:
     args = parse_args()
+    if args.condition == "sham":
+        if not args.telemetry_v2 or not args.determinism_audit:
+            raise ValueError("sham requires --telemetry-v2 and --determinism-audit")
+        if not args.pair_id or args.sham_trigger_step is None or args.sham_trigger_step < 0:
+            raise ValueError("sham requires --pair-id and a non-negative --sham-trigger-step")
+    elif args.sham_trigger_step is not None:
+        raise ValueError("--sham-trigger-step is valid only for --condition sham")
+    if args.determinism_audit and not args.telemetry_v2:
+        raise ValueError("--determinism-audit requires --telemetry-v2")
     set_seed(args.seed)
 
     output_dir = Path(args.output_dir)
@@ -448,6 +502,10 @@ def main() -> None:
                         task_id,
                         env_cfg.fps,
                         telemetry_writer,
+                        args.condition,
+                        args.pair_id,
+                        args.sham_trigger_step,
+                        args.determinism_audit,
                     )
                     meta.update({"suite": suite_name, "task_id": task_id, "episode_index": episode_index})
                     manifest.append(meta)

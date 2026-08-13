@@ -19,6 +19,9 @@
     "perturbation_type",
     "perturbation_config_hash",
     "task_mapping_hash",
+    "initial_observation_hash",
+    "initial_rng_state_hashes",
+    "determinism_audit_enabled",
     "telemetry_completeness"
   ],
   "frame_fields": [
@@ -48,6 +51,10 @@
     "goal_predicates",
     "next_goal_predicates",
     "task_success",
+    "pre_action_rng_state_hashes",
+    "post_action_rng_state_hashes",
+    "sham_hook_rng_before",
+    "sham_hook_rng_after",
     "perturbation_scheduled",
     "perturbation_triggered",
     "perturbation_parameters"
