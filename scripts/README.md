@@ -9,9 +9,12 @@
    Policy-agnostic engine behind two per-policy shell wrappers:
    - `data_generation/collect_libero_rollouts_smolvla.sh`
    - `data_generation/collect_libero_rollouts_pi05.sh`
+3. `false_complete_review/classify_false_complete.py` — convert automatic rollout evidence
+   into a review-ready False Complete/failure CSV with blank human comparison columns.
 
-All target the `libero_smolvla` conda environment (Python 3.10, `lerobot` editable-installed
-from `/home/eunju/research/lerobot`). They import lerobot's env/policy factories from their
+The training and rollout scripts target the `libero_smolvla` conda environment (Python 3.10,
+`lerobot` editable-installed from `/home/eunju/research/lerobot`). They import lerobot's
+env/policy factories from their
 submodules (`lerobot.envs.factory`, `lerobot.policies.factory`, ...) rather than the
 top-level `lerobot.envs`/`lerobot.policies` packages, since that env's lerobot checkout
 doesn't re-export these names at the package level. This keeps the scripts working without
