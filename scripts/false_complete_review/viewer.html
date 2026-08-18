@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Re-VLA Rollout Review</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOCAL · NAS STREAM · REVIEW WORKSPACE</p>
+        <h1>Re-VLA Rollout Review</h1>
+      </div>
+      <div class="progress" id="progress">불러오는 중…</div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section>
+          <h2>필터</h2>
+          <label>검색<input id="search" type="search" placeholder="suite, task, episode…" /></label>
+          <label>자동 판정<select id="classification-filter"><option value="">전체</option></select></label>
+          <label>Review 우선순위<select id="priority-filter"><option value="">전체</option></select></label>
+          <label class="check"><input id="recommended-only" type="checkbox" /> 추천 episode만</label>
+          <label class="check"><input id="unreviewed-only" type="checkbox" /> 미검토만</label>
+        </section>
+
+        <section class="summary" id="summary"></section>
+
+        <section class="backup">
+          <h2>결과</h2>
+          <button id="export" type="button">CSV 내려받기</button>
+          <label class="import">CSV 이어하기<input id="import" type="file" accept=".csv,text/csv" /></label>
+          <p>브라우저에 자동 보존되지만 중간 CSV 백업을 권장합니다.</p>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <nav class="episode-nav">
+          <button id="previous" type="button">← 이전</button>
+          <code id="episode-key">—</code>
+          <button id="next" type="button">다음 →</button>
+        </nav>
+
+        <section class="identity-card">
+          <div class="identity-main">
+            <p id="task-description">Episode를 불러오는 중입니다.</p>
+            <div class="chips" id="identity-chips"></div>
+          </div>
+          <div class="auto-decision">
+            <span>AUTO</span>
+            <strong id="auto-label">—</strong>
+            <small id="auto-confidence">—</small>
+          </div>
+        </section>
+
+        <section class="video-shell">
+          <div class="video-toolbar">
+            <h2>Rollout 영상</h2>
+            <div>
+              <button id="play-all" type="button">모두 재생</button>
+              <button id="pause-all" type="button">모두 정지</button>
+            </div>
+          </div>
+          <div class="video-grid" id="video-grid"></div>
+        </section>
+
+        <section class="evidence-card">
+          <h2>자동 evidence</h2>
+          <dl id="evidence"></dl>
+        </section>
+
+        <form id="annotation-form">
+          <section class="annotation-card">
+            <div>
+              <h2>Human review</h2>
+              <p>영상을 직접 보고 자동 판정과 독립적으로 기록합니다.</p>
+            </div>
+            <div class="annotation-grid">
+              <label>Human label
+                <select id="human-label" required>
+                  <option value="">선택</option>
+                  <option value="false_complete">false_complete</option>
+                  <option value="failure">failure</option>
+                  <option value="not_failure">not_failure</option>
+                  <option value="uncertain">uncertain</option>
+                </select>
+              </label>
+              <label>Failure type<input id="human-failure-type" placeholder="예: missed_grasp" /></label>
+              <label class="notes">Notes<textarea id="human-notes" rows="4" placeholder="영상 근거와 애매한 지점을 기록하세요."></textarea></label>
+            </div>
+            <div class="form-footer">
+              <p id="status" role="status">아직 저장하지 않았습니다.</p>
+              <button class="save" type="submit">저장하고 다음 →</button>
+            </div>
+          </section>
+        </form>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

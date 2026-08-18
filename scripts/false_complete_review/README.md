@@ -62,6 +62,51 @@ analysis_root/
 자동 판정은 이 human 열들을 feature로 읽지 않는다. 자동 `classification`, `confidence`,
 `classification_reason`과 human 열이 같은 행에 있어 Excel/LibreOffice에서 바로 비교할 수 있다.
 
+## NAS rollout을 웹에서 보기
+
+저장소의 기존 `hf_review_space`는 frozen 200개와 Annotator A assignment에 고정된 전용
+viewer라 새 rollout에는 그대로 쓸 수 없다. `build_rollout_viewer.py`는 현재 review CSV와
+NAS/local mount의 영상을 연결하는 범용 localhost viewer다. 영상 파일은 복사하지 않는다.
+
+NAS가 `/mnt/nas/.../rollouts`로 보이는 머신에서 다음처럼 한 번에 생성하고 실행한다.
+
+```bash
+python scripts/false_complete_review/build_rollout_viewer.py build \
+  --review-csv outputs/run1_review.csv \
+  --video-root /mnt/nas/path/to/rollouts \
+  --output-dir outputs/run1_viewer \
+  --serve
+```
+
+표시된 `http://127.0.0.1:8765/`을 브라우저에서 열면 된다. Windows에서는 NAS를 SMB 드라이브로
+마운트한 뒤 `--video-root Z:\\path\\to\\rollouts`처럼 지정할 수 있다. Viewer만 다시 실행할
+때는 다음 명령을 쓴다.
+
+```bash
+python scripts/false_complete_review/build_rollout_viewer.py serve \
+  --viewer-dir outputs/run1_viewer \
+  --video-root /mnt/nas/path/to/rollouts
+```
+
+Viewer 기능:
+
+- suite/task/episode, 자동 classification·confidence·reason을 영상 옆에 표시
+- classification, review priority, 추천 여부, 미검토 상태 필터
+- 여러 camera MP4를 한 episode에 함께 표시하고 동시 재생/정지
+- `human_label`, `human_failure_type`, `human_notes`를 브라우저 localStorage에 저장
+- human review CSV export 및 이전 export CSV import
+- HTTP byte-range 지원으로 긴 NAS MP4 seek
+- 기본 `127.0.0.1` bind, NAS 영상 복사 0건
+
+CSV에 `video_paths`, `video_path`, `review_clip_path` 열이 있으면 그 경로를 우선 사용한다.
+값은 `|`로 여러 camera를 구분할 수 있다. 경로 열이 없으면 `--video-root` 아래의
+`episode_*.mp4`를 한 번 스캔해 `suite + episode_index`로 연결한다. 모호하면 추측하지 않고
+중단하므로 CSV에 명시적 video path 열을 추가한다. Custom 열은 `--video-column`으로 지정한다.
+
+Viewer도 blinded review 경계를 지켜 `outcome/reward/success/done/length/frame_count/similarity`
+열이 포함된 CSV는 거부한다. NAS가 로컬 경로로 mount되어 있지 않으면 먼저 read-only mount를
+준비해야 하며, 이 도구는 SSH secret을 읽거나 원격 파일을 내려받지 않는다.
+
 ## 판정 규칙
 
 기본값은 아래 core를 쓰는 `--decision-policy robust`다.
@@ -115,5 +160,5 @@ detector_failure_types
 
 ```bash
 cd scripts/false_complete_review
-python -m unittest -v test_classify_false_complete.py
+python -m unittest -v test_classify_false_complete.py test_build_rollout_viewer.py
 ```
